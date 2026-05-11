@@ -67,8 +67,8 @@ function App() {
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
         <div className="flex flex-col items-center justify-center mb-6">
-          <img src="/favicon.svg" alt="TrioSwap Logo" className="w-16 h-16 mb-2" />
-          <h1 className="text-2xl font-bold text-center text-gray-800">TrioSwap</h1>
+          <img src="/favicon.svg" alt="FrApps Converter Logo" className="w-16 h-16 mb-2" />
+          <h1 className="text-2xl font-bold text-center text-gray-800">FrApps Converter</h1>
         </div>
 
         <div className="space-y-6">
