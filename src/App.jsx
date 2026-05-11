@@ -20,7 +20,7 @@ function App() {
         } else {
           setError('Failed to fetch rates');
         }
-      } catch (err) {
+      } catch {
         setError('Error fetching rates');
       } finally {
         setLoading(false);
@@ -29,16 +29,6 @@ function App() {
     fetchRates();
   }, []);
 
-  const handleChange = (currency, value) => {
-    if (value === '') {
-      setValues({ USD: '', LRD: '', GHS: '' });
-      return;
-    }
-
-    const numValue = parseFloat(value);
-    if (isNaN(numValue)) return; // Allow typing dots, handle carefully or ignore invalid
-    // For simplicity, we just parse standard floats. To be robust, handle string state.
-  };
 
   const handleInputChange = (e, currency) => {
     const val = e.target.value;
@@ -76,7 +66,10 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
-        <h1 className="text-2xl font-bold text-center text-gray-800 mb-6">Currency Converter</h1>
+        <div className="flex flex-col items-center justify-center mb-6">
+          <img src="/favicon.svg" alt="FrApps Converter Logo" className="w-16 h-16 mb-2" />
+          <h1 className="text-2xl font-bold text-center text-gray-800">FrApps Converter</h1>
+        </div>
 
         <div className="space-y-6">
           {/* USD Input */}
