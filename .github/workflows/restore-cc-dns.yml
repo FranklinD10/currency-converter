@@ -1,0 +1,65 @@
+name: Restore cc.frapps.tech DNS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  restore-dns:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Lookup zone ID for frapps.tech
+        id: zone
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          ZONE_JSON=$(curl -s -H "Authorization: Bearer $CF_TOKEN" "https://api.cloudflare.com/client/v4/zones?name=frapps.tech")
+          echo "$ZONE_JSON" | head -c 500
+          echo
+          ZONE_ID=$(echo "$ZONE_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); r=d.get('result',[]); print(r[0]['id'] if r else '')")
+          if [ -z "$ZONE_ID" ]; then echo "zone lookup failed"; echo "$ZONE_JSON"; exit 1; fi
+          echo "zone_id=$ZONE_ID" >> "$GITHUB_OUTPUT"
+          echo "Zone OK"
+
+      - name: Check existing cc record
+        id: check
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          ZONE_ID="${{ steps.zone.outputs.zone_id }}"
+          REC_JSON=$(curl -s -H "Authorization: Bearer $CF_TOKEN" "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records?name=cc.frapps.tech")
+          echo "$REC_JSON" | head -c 1000
+          echo
+          COUNT=$(echo "$REC_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(len(d.get('result',[])))")
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+          echo "$REC_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); [print(r.get('id'), r.get('type'), r.get('name'), r.get('content'), r.get('proxied')) for r in d.get('result',[])]"
+
+      - name: Create missing CNAME cc -> frapps-currency-converter.netlify.app
+        if: steps.check.outputs.count == '0'
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          ZONE_ID="${{ steps.zone.outputs.zone_id }}"
+          CREATE_JSON=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
+            -H "Authorization: Bearer $CF_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data '{"type":"CNAME","name":"cc","content":"frapps-currency-converter.netlify.app","ttl":300,"proxied":false,"comment":"restored 2026-09-06 ops"}')
+          echo "$CREATE_JSON" | head -c 1000
+          echo
+          echo "$CREATE_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get('success'), d; print('created:', d['result']['id'])"
+
+      - name: Verify DNS propagation
+        run: |
+          set -euo pipefail
+          for i in 1 2 3 4 5 6; do
+            echo "--- attempt $i ---"
+            dig +short cc.frapps.tech @1.1.1.1 || true
+            if dig +short cc.frapps.tech @1.1.1.1 | grep -qi netlify; then echo "DNS OK"; break; fi
+            sleep 20
+          done
+          dig +short cc.frapps.tech @1.1.1.1 || true
+          echo "--- http check (may need SSL time) ---"
+          curl -sI -L --max-time 20 https://cc.frapps.tech | head -n 20 || true
