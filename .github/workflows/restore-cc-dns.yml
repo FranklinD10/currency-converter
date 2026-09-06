@@ -5,9 +5,20 @@ on:
 
 jobs:
   restore-dns:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     timeout-minutes: 10
     steps:
+      - name: Show runner egress IP
+        run: |
+          curl -s --max-time 15 https://api.ipify.org || true
+          echo
       - name: Lookup zone ID for frapps.tech
         id: zone
         env:
